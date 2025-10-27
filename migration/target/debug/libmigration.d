@@ -1,0 +1,1 @@
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/libmigration.rlib: /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/src/lib.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/src/m20220101_000001_create_table.rs

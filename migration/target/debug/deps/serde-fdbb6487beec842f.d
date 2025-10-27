@@ -1,0 +1,12 @@
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/serde-fdbb6487beec842f.d: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-b2ac524661af5808/out/private.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/libserde-fdbb6487beec842f.rmeta: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-b2ac524661af5808/out/private.rs
+
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-b2ac524661af5808/out/private.rs:
+
+# env-dep:OUT_DIR=/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-b2ac524661af5808/out

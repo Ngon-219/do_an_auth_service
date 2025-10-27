@@ -1,0 +1,14 @@
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/deps/thiserror-c0331698c5caf191.d: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/build/thiserror-9967f00e0c99ea0e/out/private.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/deps/libthiserror-c0331698c5caf191.rlib: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/build/thiserror-9967f00e0c99ea0e/out/private.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/deps/libthiserror-c0331698c5caf191.rmeta: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/build/thiserror-9967f00e0c99ea0e/out/private.rs
+
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs:
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/build/thiserror-9967f00e0c99ea0e/out/private.rs:
+
+# env-dep:OUT_DIR=/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/release/build/thiserror-9967f00e0c99ea0e/out

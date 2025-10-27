@@ -1,0 +1,14 @@
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/serde-1713760be4b996ee.d: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-25f4d703cd1bf07c/out/private.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/libserde-1713760be4b996ee.rlib: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-25f4d703cd1bf07c/out/private.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/libserde-1713760be4b996ee.rmeta: /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-25f4d703cd1bf07c/out/private.rs
+
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/ho1m3s/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-25f4d703cd1bf07c/out/private.rs:
+
+# env-dep:OUT_DIR=/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/build/serde-25f4d703cd1bf07c/out

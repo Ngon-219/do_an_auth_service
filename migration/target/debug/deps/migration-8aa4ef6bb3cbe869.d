@@ -1,0 +1,5 @@
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/migration-8aa4ef6bb3cbe869.d: src/main.rs
+
+/home/ho1m3s/do_an_tot_nghiep/auth_service/migration/target/debug/deps/libmigration-8aa4ef6bb3cbe869.rmeta: src/main.rs
+
+src/main.rs:
