@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Starting application...");
 
-    let app = app::create_app().await;
+    let app = app::create_app().await?;
 
     let address = format!("0.0.0.0:{}", APP_CONFIG.port);
 

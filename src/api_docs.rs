@@ -8,14 +8,25 @@ use utoipa::openapi::security::SecurityScheme;
 #[openapi(
     paths(
         crate::routes::health::route::health_check,
+        crate::routes::users::route::create_user,
+        crate::routes::users::route::create_users_bulk,
     ),
     components(
         schemas(
+            crate::routes::users::dto::CreateUserRequest,
+            crate::routes::users::dto::UserResponse,
+            crate::routes::users::dto::BulkUserResponse,
+            crate::routes::users::dto::BulkUserError,
+            crate::entities::sea_orm_active_enums::RoleEnum,
         ),
     ),
     modifiers(&SecurityModifier),
     servers(
         (url = "/")
+    ),
+    tags(
+        (name = "Users", description = "User management endpoints"),
+        (name = "Health", description = "Health check endpoints")
     ),
 )]
 pub struct ApiDoc;

@@ -1,27 +1,39 @@
 use crate::config::APP_CONFIG;
 use crate::routes;
 use crate::routes::health::route::create_route;
-use axum::{Router, middleware};
+use crate::blockchain::BlockchainService;
+use crate::state::AppState;
+use axum::Router;
 use http::header;
+use sea_orm::Database;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
 use tower::ServiceBuilder;
-use tower_governor::GovernorLayer;
-use tower_governor::governor::GovernorConfigBuilder;
-use tower_http::{ServiceBuilderExt, cors::CorsLayer, propagate_header::PropagateHeaderLayer};
+use tower_http::{ServiceBuilderExt, propagate_header::PropagateHeaderLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use crate::api_docs::ApiDoc;
 
-pub async fn create_app() -> Router {
+pub async fn create_app() -> anyhow::Result<Router> {
+    // Initialize database connection
+    let db = Database::connect(&APP_CONFIG.database_url)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to connect to database: {}", e))?;
+    
+    // Initialize blockchain service
+    let blockchain = BlockchainService::new()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize blockchain service: {}", e))?;
+    
+    // Create application state
+    let state = AppState::new(db, blockchain);
+    
     let mut router = Router::new()
-        .nest("/health", create_route())
+        .merge(create_route())
         .nest(
-        "/api/v1/",
-        Router::new()
-            // .merge(routes::health::route::create_route()),
-    );
+            "/api/v1",
+            routes::users::create_route()
+        )
+        .with_state(state);
 
     if APP_CONFIG.swagger_enabled {
         let config = utoipa_swagger_ui::Config::new(["/"]).display_request_duration(true);
@@ -43,5 +55,5 @@ pub async fn create_app() -> Router {
         .sensitive_response_headers(sensitive_headers)
         .compression();
 
-    Router::new().merge(router).layer(middleware)
+    Ok(Router::new().merge(router).layer(middleware))
 }
