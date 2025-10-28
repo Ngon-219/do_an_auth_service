@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
 
+use auth_service::bootstrap::initialize_admin_user;
+use auth_service::static_service::get_database_connection;
 use auth_service::{app, config::APP_CONFIG, utils::tracing::init_standard_tracing};
-use auth_service::static_service::{get_blockchain_connection, get_database_connection};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,8 +12,15 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Starting application...");
 
-    let _db_connection = get_database_connection().await;
-    let _init_blockchain_service = get_blockchain_connection().await;
+    // Initialize database connection
+    let db_connection = get_database_connection().await;
+
+    // Initialize default admin user
+    tracing::info!("Checking admin user...");
+    if let Err(e) = initialize_admin_user(db_connection).await {
+        tracing::error!("Failed to initialize admin user: {}", e);
+        tracing::warn!("Continuing without admin user initialization...");
+    }
 
     let app = app::create_app().await?;
 

@@ -4,7 +4,7 @@ pub mod prelude;
 
 pub mod department;
 pub mod major;
-pub mod major_department_user;
 pub mod sea_orm_active_enums;
 pub mod user;
+pub mod user_major;
 pub mod wallet;

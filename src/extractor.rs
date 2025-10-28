@@ -1,5 +1,7 @@
+use crate::entities::sea_orm_active_enums::RoleEnum;
 use crate::entities::user;
 use crate::entities::user::Entity as UserModel;
+use crate::static_service::DATABASE_CONNECTION;
 use axum::extract::FromRequestParts;
 use axum_extra::{
     TypedHeader,
@@ -10,10 +12,23 @@ use do_an_lib::jwt::JwtManager;
 use do_an_lib::structs::token_claims::{TokenClaims, UserRole};
 use http::request::Parts;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use crate::entities::sea_orm_active_enums::RoleEnum;
-use crate::static_service::DATABASE_CONNECTION;
 
 pub struct AuthClaims(pub TokenClaims);
+
+impl AuthClaims {
+    /// Get user_id from claims
+    pub fn user_id(&self) -> Result<uuid::Uuid, String> {
+        self.0
+            .user_id
+            .parse()
+            .map_err(|e| format!("Invalid user_id in token: {}", e))
+    }
+
+    /// Get claims reference
+    pub fn claims(&self) -> &TokenClaims {
+        &self.0
+    }
+}
 
 impl<S> FromRequestParts<S> for AuthClaims
 where
@@ -33,20 +48,27 @@ where
             .decode_jwt(bearer.token())
             .map_err(|_| AppErrors::unauthorized("Invalid jwt token"))?;
 
-        let db = DATABASE_CONNECTION.get().expect("DATABASE_CONNECTION not set");
+        let db = DATABASE_CONNECTION
+            .get()
+            .expect("DATABASE_CONNECTION not set");
+
+        // Parse user_id from string to UUID
+        let user_uuid = uuid::Uuid::parse_str(&token_data.user_id)
+            .map_err(|_| AppErrors::unauthorized("Invalid user_id in token"))?;
+
         let user_info = UserModel::find()
-            .filter(<user::Entity as sea_orm::EntityTrait>::Column::UserId.eq(token_data.user_id.clone()))
+            .filter(<user::Entity as sea_orm::EntityTrait>::Column::UserId.eq(user_uuid))
             .one(db)
             .await?;
 
         if user_info.is_none() {
-            AppErrors::unauthorized("User not found");
+            return Err(AppErrors::unauthorized("User not found"));
         }
 
         let _path = parts.uri.path().to_string();
         let _method = &parts.method;
 
-        let user_role = match user_info.unwrap().role{
+        let user_role = match user_info.unwrap().role {
             RoleEnum::Admin => UserRole::ADMIN,
             RoleEnum::Manager => UserRole::MANAGER,
             RoleEnum::Student => UserRole::STUDENT,

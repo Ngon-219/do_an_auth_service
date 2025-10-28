@@ -32,6 +32,10 @@ pub struct CreateUserRequest {
     /// Student code - required for students, optional for other roles
     #[schema(example = "SV001")]
     pub student_code: Option<String>,
+
+    /// Array of major IDs (majors already have department relationship)
+    #[serde(default)]
+    pub major_ids: Option<Vec<Uuid>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

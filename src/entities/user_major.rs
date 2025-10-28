@@ -3,25 +3,26 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "wallet")]
+#[sea_orm(table_name = "user_major")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub wallet_id: Uuid,
-    #[sea_orm(unique)]
     pub user_id: Uuid,
-    pub address: String,
-    pub private_key: String,
-    pub chain_type: String,
-    pub public_key: String,
-    pub status: String,
-    pub network_id: String,
-    pub last_used_at: Option<DateTime>,
-    pub created_at: DateTime,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub major_id: Uuid,
+    pub create_at: DateTime,
     pub updated_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::major::Entity",
+        from = "Column::MajorId",
+        to = "super::major::Column::MajorId",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Major,
     #[sea_orm(
         belongs_to = "super::user::Entity",
         from = "Column::UserId",
@@ -30,6 +31,12 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     User,
+}
+
+impl Related<super::major::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Major.def()
+    }
 }
 
 impl Related<super::user::Entity> for Entity {

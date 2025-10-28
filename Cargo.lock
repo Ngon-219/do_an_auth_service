@@ -1392,7 +1392,6 @@ dependencies = [
 [[package]]
 name = "do_an_lib"
 version = "0.0.2"
-source = "git+ssh://git@github.com/Ngon-219/do_an_libs.git?tag=v0.0.2#09edce58aa8a5a2e83408a61a709d318f67c5697"
 dependencies = [
  "async-trait",
  "axum",

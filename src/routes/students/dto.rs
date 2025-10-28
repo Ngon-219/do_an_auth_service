@@ -44,4 +44,3 @@ pub struct SystemInfoResponse {
     pub total_students: u64,
     pub total_managers: u64,
 }
-

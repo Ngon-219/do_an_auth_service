@@ -2,6 +2,6 @@
 
 pub use super::department::Entity as Department;
 pub use super::major::Entity as Major;
-pub use super::major_department_user::Entity as MajorDepartmentUser;
 pub use super::user::Entity as User;
+pub use super::user_major::Entity as UserMajor;
 pub use super::wallet::Entity as Wallet;

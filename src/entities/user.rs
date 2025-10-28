@@ -2,24 +2,16 @@
 
 use super::sea_orm_active_enums::RoleEnum;
 use sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
-pub struct Entity;
-
-impl EntityName for Entity {
-    fn table_name(&self) -> &str {
-        "user"
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[sea_orm(table_name = "user")]
 pub struct Model {
-    #[serde(skip_deserializing)]
+    #[sea_orm(primary_key, auto_increment = false)]
     pub user_id: Uuid,
     pub first_name: String,
     pub last_name: String,
     pub address: String,
+    #[sea_orm(unique)]
     pub email: String,
     pub password: String,
     pub is_priority: bool,
@@ -31,82 +23,32 @@ pub struct Model {
     pub role: RoleEnum,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
-pub enum Column {
-    UserId,
-    FirstName,
-    LastName,
-    Address,
-    Email,
-    Password,
-    IsPriority,
-    Cccd,
-    PhoneNumber,
-    IsFirstLogin,
-    CreateAt,
-    UpdateAt,
-    Role,
-}
-
-#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
-pub enum PrimaryKey {
-    UserId,
-}
-
-impl PrimaryKeyTrait for PrimaryKey {
-    type ValueType = Uuid;
-    fn auto_increment() -> bool {
-        false
-    }
-}
-
-#[derive(Copy, Clone, Debug, EnumIter)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    MajorDepartmentUser,
+    #[sea_orm(has_many = "super::user_major::Entity")]
+    UserMajor,
+    #[sea_orm(has_one = "super::wallet::Entity")]
     Wallet,
 }
 
-impl ColumnTrait for Column {
-    type EntityName = Entity;
-    fn def(&self) -> ColumnDef {
-        match self {
-            Self::UserId => ColumnType::Uuid.def(),
-            Self::FirstName => ColumnType::String(StringLen::None).def(),
-            Self::LastName => ColumnType::String(StringLen::None).def(),
-            Self::Address => ColumnType::String(StringLen::None).def(),
-            Self::Email => ColumnType::String(StringLen::None).def().unique(),
-            Self::Password => ColumnType::String(StringLen::None).def(),
-            Self::IsPriority => ColumnType::Boolean.def(),
-            Self::Cccd => ColumnType::String(StringLen::None).def(),
-            Self::PhoneNumber => ColumnType::String(StringLen::None).def(),
-            Self::IsFirstLogin => ColumnType::Boolean.def(),
-            Self::CreateAt => ColumnType::DateTime.def(),
-            Self::UpdateAt => ColumnType::DateTime.def(),
-            Self::Role => RoleEnum::db_type().get_column_type().to_owned().def(),
-        }
-    }
-}
-
-impl RelationTrait for Relation {
-    fn def(&self) -> RelationDef {
-        match self {
-            Self::MajorDepartmentUser => {
-                Entity::has_many(super::major_department_user::Entity).into()
-            }
-            Self::Wallet => Entity::has_one(super::wallet::Entity).into(),
-        }
-    }
-}
-
-impl Related<super::major_department_user::Entity> for Entity {
+impl Related<super::user_major::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MajorDepartmentUser.def()
+        Relation::UserMajor.def()
     }
 }
 
 impl Related<super::wallet::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Wallet.def()
+    }
+}
+
+impl Related<super::major::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::user_major::Relation::Major.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::user_major::Relation::User.def().rev())
     }
 }
 

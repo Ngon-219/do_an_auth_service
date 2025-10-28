@@ -1,6 +1,7 @@
 pub mod api_docs;
 pub mod app;
 pub mod blockchain;
+pub mod bootstrap;
 pub mod config;
 pub mod entities;
 pub mod extractor;

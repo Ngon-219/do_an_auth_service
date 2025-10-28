@@ -27,4 +27,3 @@ pub struct ManagerListResponse {
 pub struct CheckManagerRequest {
     pub address: String,
 }
-

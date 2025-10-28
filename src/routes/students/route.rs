@@ -6,18 +6,29 @@ use axum::{
 };
 
 use super::dto::{
-    StudentAddressRequest, StudentCodeRequest, StudentIdResponse,
-    StudentInfoResponse, StudentStatusResponse, SystemInfoResponse,
+    StudentAddressRequest, StudentCodeRequest, StudentIdResponse, StudentInfoResponse,
+    StudentStatusResponse, SystemInfoResponse,
 };
-use crate::static_service::BLOCKCHAIN_SERVICES;
+use crate::blockchain::get_user_blockchain_service;
+use crate::extractor::AuthClaims;
+use crate::static_service::DATABASE_CONNECTION;
 
 pub fn create_route() -> Router {
     Router::new()
         .route("/api/v1/students/{student_id}", get(get_student_by_id))
-        .route("/api/v1/students/by-address", post(get_student_id_by_address))
+        .route(
+            "/api/v1/students/by-address",
+            post(get_student_id_by_address),
+        )
         .route("/api/v1/students/by-code", post(get_student_id_by_code))
-        .route("/api/v1/students/{student_id}/deactivate", put(deactivate_student))
-        .route("/api/v1/students/{student_id}/activate", put(activate_student))
+        .route(
+            "/api/v1/students/{student_id}/deactivate",
+            put(deactivate_student),
+        )
+        .route(
+            "/api/v1/students/{student_id}/activate",
+            put(activate_student),
+        )
         .route("/api/v1/students/check-active", post(check_student_active))
         .route("/api/v1/system/info", get(get_system_info))
 }
@@ -37,11 +48,26 @@ pub fn create_route() -> Router {
     tag = "Students"
 )]
 pub async fn get_student_by_id(
+    AuthClaims(auth_claims): AuthClaims,
     Path(student_id): Path<u64>,
 ) -> Result<(StatusCode, Json<StudentInfoResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     let student = blockchain.get_student(student_id).await.map_err(|e| {
         (
@@ -76,11 +102,26 @@ pub async fn get_student_by_id(
     tag = "Students"
 )]
 pub async fn get_student_id_by_address(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<StudentAddressRequest>,
 ) -> Result<(StatusCode, Json<StudentIdResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     let student_id = blockchain
         .get_student_id_by_address(&payload.address)
@@ -114,11 +155,26 @@ pub async fn get_student_id_by_address(
     tag = "Students"
 )]
 pub async fn get_student_id_by_code(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<StudentCodeRequest>,
 ) -> Result<(StatusCode, Json<StudentIdResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     let student_id = blockchain
         .get_student_id_by_code(&payload.student_code)
@@ -153,11 +209,26 @@ pub async fn get_student_id_by_code(
     tag = "Students"
 )]
 pub async fn deactivate_student(
+    AuthClaims(auth_claims): AuthClaims,
     Path(student_id): Path<u64>,
 ) -> Result<(StatusCode, Json<StudentStatusResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     blockchain
         .deactivate_student(student_id)
@@ -191,11 +262,26 @@ pub async fn deactivate_student(
     tag = "Students"
 )]
 pub async fn activate_student(
+    AuthClaims(auth_claims): AuthClaims,
     Path(student_id): Path<u64>,
 ) -> Result<(StatusCode, Json<StudentStatusResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     blockchain.activate_student(student_id).await.map_err(|e| {
         (
@@ -224,11 +310,26 @@ pub async fn activate_student(
     tag = "Students"
 )]
 pub async fn check_student_active(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<StudentAddressRequest>,
 ) -> Result<(StatusCode, Json<StudentStatusResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     let is_active = blockchain
         .is_active_student(&payload.address)
@@ -264,10 +365,25 @@ pub async fn check_student_active(
     tag = "System"
 )]
 pub async fn get_system_info(
+    AuthClaims(auth_claims): AuthClaims,
 ) -> Result<(StatusCode, Json<SystemInfoResponse>), (StatusCode, String)> {
-    let blockchain = BLOCKCHAIN_SERVICES
+    let db = DATABASE_CONNECTION
         .get()
-        .expect("BLOCKCHAIN_SERVICES not set");
+        .expect("DATABASE_CONNECTION not set");
+    let user_id = uuid::Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = get_user_blockchain_service(db, &user_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to initialize blockchain service: {}", e),
+            )
+        })?;
 
     let (owner, student_count, manager_count) =
         blockchain.get_contract_info().await.map_err(|e| {
@@ -285,4 +401,3 @@ pub async fn get_system_info(
 
     Ok((StatusCode::OK, Json(response)))
 }
-

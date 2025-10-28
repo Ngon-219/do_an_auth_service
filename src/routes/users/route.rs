@@ -1,9 +1,4 @@
-use axum::{
-    Json, Router,
-    extract::Multipart,
-    http::StatusCode,
-    routing::post,
-};
+use axum::{Json, Router, extract::Multipart, http::StatusCode, routing::post};
 use calamine::{DataType, Reader, Xlsx, open_workbook_from_rs};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, Set};
@@ -11,10 +6,11 @@ use std::io::Cursor;
 use uuid::Uuid;
 
 use super::dto::{BulkUserError, BulkUserResponse, CreateUserRequest, ExcelUserRow, UserResponse};
-use crate::blockchain::BlockchainService;
+use crate::blockchain::{BlockchainService, get_admin_blockchain_service, get_user_private_key};
 use crate::entities::sea_orm_active_enums::RoleEnum;
-use crate::entities::{user, wallet};
-use crate::static_service::{BLOCKCHAIN_SERVICES, DATABASE_CONNECTION};
+use crate::entities::{user, user_major, wallet};
+use crate::extractor::AuthClaims;
+use crate::static_service::DATABASE_CONNECTION;
 
 pub fn create_route() -> Router {
     Router::new()
@@ -35,11 +31,33 @@ pub fn create_route() -> Router {
     tag = "Users"
 )]
 pub async fn create_user(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, Json<UserResponse>), (StatusCode, String)> {
-    let db = DATABASE_CONNECTION.get().expect("DATABASE_CONNECTION not set");
-    let blockchain = BLOCKCHAIN_SERVICES.get().expect("BLOCKCHAIN_SERVICES not set");
-    
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+    let user_uuid = Uuid::parse_str(&auth_claims.user_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let user_private_key = get_user_private_key(db, &user_uuid).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Invalid user_id: {}", e),
+        )
+    })?;
+    let blockchain = BlockchainService::new(&user_private_key)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Internal server error: {}", e),
+            )
+        })?;
+
     let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -47,7 +65,6 @@ pub async fn create_user(
         )
     })?;
 
-    
     let (wallet_address, wallet_private_key) =
         BlockchainService::generate_wallet().map_err(|e| {
             (
@@ -128,15 +145,12 @@ pub async fn create_user(
         }
         RoleEnum::Manager => {
             // Use addManager instead of assignRole for managers
-            blockchain
-                .add_manager(&wallet_address)
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("Failed to add manager on blockchain: {}", e),
-                    )
-                })?;
+            blockchain.add_manager(&wallet_address).await.map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to add manager on blockchain: {}", e),
+                )
+            })?;
         }
         RoleEnum::Teacher | RoleEnum::Admin => {
             // For Teacher and Admin, use assignRole (requires owner)
@@ -158,6 +172,25 @@ pub async fn create_user(
         }
     }
 
+    // Create user-major relationships
+    if let Some(major_ids) = payload.major_ids {
+        for major_id in major_ids.iter() {
+            let relationship_model = user_major::ActiveModel {
+                user_id: Set(user_id),
+                major_id: Set(*major_id),
+                create_at: Set(now),
+                updated_at: Set(now),
+            };
+
+            relationship_model.insert(db).await.map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to create user-major relationship: {}", e),
+                )
+            })?;
+        }
+    }
+
     let response = UserResponse {
         user_id: user.user_id,
         first_name: user.first_name,
@@ -173,7 +206,6 @@ pub async fn create_user(
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-/// Handler for bulk user creation from Excel file
 #[utoipa::path(
     post,
     path = "/api/v1/users/bulk",
@@ -189,8 +221,15 @@ pub async fn create_users_bulk(
     mut multipart: Multipart,
 ) -> Result<(StatusCode, Json<BulkUserResponse>), (StatusCode, String)> {
     // Get DB and blockchain from global state
-    let db = DATABASE_CONNECTION.get().expect("DATABASE_CONNECTION not set");
-    let blockchain = BLOCKCHAIN_SERVICES.get().expect("BLOCKCHAIN_SERVICES not set");
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+    let blockchain = get_admin_blockchain_service().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to initialize blockchain service: {}", e),
+        )
+    })?;
     let mut file_data: Option<Vec<u8>> = None;
 
     // Extract file from multipart

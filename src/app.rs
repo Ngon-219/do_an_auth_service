@@ -13,7 +13,11 @@ use utoipa_swagger_ui::SwaggerUi;
 pub async fn create_app() -> anyhow::Result<Router> {
     let mut router = Router::new()
         .merge(create_route())
+        .merge(routes::auth::create_route())
+        .merge(routes::profile::create_route())
         .merge(routes::users::create_route())
+        .merge(routes::departments::create_route())
+        .merge(routes::majors::create_route())
         .merge(routes::managers::create_route())
         .merge(routes::students::create_route());
 
