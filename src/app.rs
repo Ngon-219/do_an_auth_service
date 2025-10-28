@@ -13,7 +13,9 @@ use utoipa_swagger_ui::SwaggerUi;
 pub async fn create_app() -> anyhow::Result<Router> {
     let mut router = Router::new()
         .merge(create_route())
-        .merge(routes::users::create_route());
+        .merge(routes::users::create_route())
+        .merge(routes::managers::create_route())
+        .merge(routes::students::create_route());
 
     // Add Swagger UI
     if APP_CONFIG.swagger_enabled {

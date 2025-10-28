@@ -37,10 +37,9 @@ pub fn create_route() -> Router {
 pub async fn create_user(
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<(StatusCode, Json<UserResponse>), (StatusCode, String)> {
-    // Get DB and blockchain from global state
     let db = DATABASE_CONNECTION.get().expect("DATABASE_CONNECTION not set");
     let blockchain = BLOCKCHAIN_SERVICES.get().expect("BLOCKCHAIN_SERVICES not set");
-    // Hash password
+    
     let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -48,7 +47,7 @@ pub async fn create_user(
         )
     })?;
 
-    // Generate wallet for user
+    
     let (wallet_address, wallet_private_key) =
         BlockchainService::generate_wallet().map_err(|e| {
             (
@@ -57,12 +56,10 @@ pub async fn create_user(
             )
         })?;
 
-    // Generate user ID
     let user_id = Uuid::new_v4();
     let wallet_id = Uuid::new_v4();
     let now = Utc::now().naive_utc();
 
-    // Create user in database
     let user_model = user::ActiveModel {
         user_id: Set(user_id),
         first_name: Set(payload.first_name.clone()),
@@ -86,7 +83,6 @@ pub async fn create_user(
         )
     })?;
 
-    // Create wallet record
     let wallet_model = wallet::ActiveModel {
         wallet_id: Set(wallet_id),
         user_id: Set(user_id),
@@ -109,43 +105,57 @@ pub async fn create_user(
     })?;
 
     // Register on blockchain
-    if payload.role == RoleEnum::Student {
-        let student_code = payload.student_code.ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                "Student code is required for students".to_string(),
-            )
-        })?;
-
-        let full_name = format!("{} {}", payload.first_name, payload.last_name);
-
-        blockchain
-            .register_student(&wallet_address, &student_code, &full_name, &payload.email)
-            .await
-            .map_err(|e| {
+    match payload.role {
+        RoleEnum::Student => {
+            let student_code = payload.student_code.ok_or_else(|| {
                 (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to register on blockchain: {}", e),
+                    StatusCode::BAD_REQUEST,
+                    "Student code is required for students".to_string(),
                 )
             })?;
-    } else {
-        // For non-students, assign role on blockchain
-        let role_code = match payload.role {
-            RoleEnum::Admin => 3,
-            RoleEnum::Teacher => 2,
-            RoleEnum::Manager => 4,
-            _ => 0,
-        };
 
-        blockchain
-            .assign_role(&wallet_address, role_code)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to assign role on blockchain: {}", e),
-                )
-            })?;
+            let full_name = format!("{} {}", payload.first_name, payload.last_name);
+
+            blockchain
+                .register_student(&wallet_address, &student_code, &full_name, &payload.email)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to register student on blockchain: {}", e),
+                    )
+                })?;
+        }
+        RoleEnum::Manager => {
+            // Use addManager instead of assignRole for managers
+            blockchain
+                .add_manager(&wallet_address)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to add manager on blockchain: {}", e),
+                    )
+                })?;
+        }
+        RoleEnum::Teacher | RoleEnum::Admin => {
+            // For Teacher and Admin, use assignRole (requires owner)
+            let role_code = match payload.role {
+                RoleEnum::Admin => 3,
+                RoleEnum::Teacher => 2,
+                _ => 0,
+            };
+
+            blockchain
+                .assign_role(&wallet_address, role_code)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to assign role on blockchain (you need to be contract owner): {}", e),
+                    )
+                })?;
+        }
     }
 
     let response = UserResponse {
