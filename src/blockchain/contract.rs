@@ -12,4 +12,3 @@ abigen!(
         event RoleAssigned(address indexed user, uint8 role)
     ]"#
 );
-

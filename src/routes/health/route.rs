@@ -1,7 +1,6 @@
 use axum::{Router, response::IntoResponse, routing::get};
-use crate::state::AppState;
 
-pub fn create_route() -> Router<AppState> {
+pub fn create_route() -> Router {
     Router::new().route("/health", get(health_check))
 }
 

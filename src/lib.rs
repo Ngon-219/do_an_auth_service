@@ -1,9 +1,9 @@
-pub mod app;
-pub mod routes;
-pub mod config;
 pub mod api_docs;
-pub mod utils;
+pub mod app;
 pub mod blockchain;
+pub mod config;
 pub mod entities;
 pub mod extractor;
-pub mod state;
+pub mod routes;
+pub mod static_service;
+pub mod utils;

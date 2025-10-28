@@ -29,6 +29,8 @@ tracing = "0.1.41"
 
 # blockchain
 ethers = { version = "2.0.14", features = ["abigen", "ws"] }
+rand = "0.8"
+hex = "0.4"
 
 # excel parsing
 calamine = "0.26"

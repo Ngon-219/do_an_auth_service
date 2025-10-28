@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use auth_service::{app, config::APP_CONFIG, utils::tracing::init_standard_tracing};
+use auth_service::static_service::{get_blockchain_connection, get_database_connection};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -9,6 +10,9 @@ async fn main() -> anyhow::Result<()> {
     init_standard_tracing(env!("CARGO_CRATE_NAME"));
 
     tracing::info!("Starting application...");
+
+    let _db_connection = get_database_connection().await;
+    let _init_blockchain_service = get_blockchain_connection().await;
 
     let app = app::create_app().await?;
 
@@ -20,8 +24,8 @@ async fn main() -> anyhow::Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .await
-        .expect("Failed to start server");
+    .await
+    .expect("Failed to start server");
 
     Ok(())
 }

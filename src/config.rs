@@ -1,5 +1,5 @@
-use once_cell::sync::Lazy;
 use clap::Parser;
+use once_cell::sync::Lazy;
 
 pub static APP_CONFIG: Lazy<Config> = Lazy::new(Config::parse);
 

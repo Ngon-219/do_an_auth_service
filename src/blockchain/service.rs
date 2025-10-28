@@ -1,12 +1,12 @@
+use crate::blockchain::contract::DataStorage;
+use crate::config::APP_CONFIG;
+use anyhow::{Context, Result};
 use ethers::prelude::*;
 use ethers::providers::{Http, Provider};
 use ethers::signers::{LocalWallet, Signer};
 use std::sync::Arc;
-use anyhow::{Context, Result};
-use crate::blockchain::contract::DataStorage;
-use crate::config::APP_CONFIG;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BlockchainService {
     contract: DataStorage<SignerMiddleware<Provider<Http>, LocalWallet>>,
 }
@@ -15,28 +15,41 @@ impl BlockchainService {
     pub async fn new() -> Result<Self> {
         let provider = Provider::<Http>::try_from(&APP_CONFIG.blockchain_rpc_url)
             .context("Failed to create provider")?;
-        
+
         let wallet: LocalWallet = APP_CONFIG
             .admin_private_key
             .parse()
             .context("Failed to parse admin private key")?;
-        
+
         let chain_id = provider.get_chainid().await?;
         let wallet = wallet.with_chain_id(chain_id.as_u64());
-        
+
         let client = SignerMiddleware::new(provider, wallet);
         let client = Arc::new(client);
-        
+
         let contract_address: Address = APP_CONFIG
             .data_storage_contract_address
             .parse()
             .context("Failed to parse contract address")?;
-        
+
         let contract = DataStorage::new(contract_address, client);
-        
+
         Ok(Self { contract })
     }
-    
+
+    /// Generate a new Ethereum wallet
+    pub fn generate_wallet() -> Result<(String, String)> {
+        // Generate a random wallet
+        let wallet = LocalWallet::new(&mut rand::thread_rng());
+
+        let address = format!("{:?}", wallet.address());
+        // Get private key as hex string
+        let private_key = wallet.signer().to_bytes();
+        let private_key_hex = hex::encode(private_key);
+
+        Ok((address, format!("0x{}", private_key_hex)))
+    }
+
     /// Register a single student on the blockchain
     pub async fn register_student(
         &self,
@@ -45,10 +58,12 @@ impl BlockchainService {
         full_name: &str,
         email: &str,
     ) -> Result<U256> {
-        let address: Address = wallet_address.parse()
+        let address: Address = wallet_address
+            .parse()
             .context("Failed to parse wallet address")?;
-        
-        let tx = self.contract
+
+        let tx = self
+            .contract
             .register_student(
                 address,
                 student_code.to_string(),
@@ -61,7 +76,7 @@ impl BlockchainService {
             .await
             .context("Failed to wait for transaction confirmation")?
             .ok_or_else(|| anyhow::anyhow!("Transaction receipt not found"))?;
-        
+
         // Parse the event to get the student ID
         let logs = tx.logs;
         for log in logs {
@@ -73,10 +88,12 @@ impl BlockchainService {
                 return Ok(event.0);
             }
         }
-        
-        Err(anyhow::anyhow!("StudentRegistered event not found in transaction"))
+
+        Err(anyhow::anyhow!(
+            "StudentRegistered event not found in transaction"
+        ))
     }
-    
+
     /// Register multiple students on the blockchain in batch
     pub async fn register_students_batch(
         &self,
@@ -89,38 +106,40 @@ impl BlockchainService {
             .iter()
             .map(|addr| addr.parse().context("Failed to parse wallet address"))
             .collect();
-        
+
         let addresses = addresses?;
-        
-        let tx = self.contract
+
+        let tx = self
+            .contract
             .register_students_batch(addresses, student_codes, full_names, emails)
             .send()
             .await
             .context("Failed to send batch register transaction")?
             .await
             .context("Failed to wait for transaction confirmation")?;
-        
+
         if tx.is_none() {
             return Err(anyhow::anyhow!("Transaction receipt not found"));
         }
-        
+
         Ok(())
     }
-    
+
     /// Assign role to a user on the blockchain
     pub async fn assign_role(&self, user_address: &str, role: u8) -> Result<()> {
-        let address: Address = user_address.parse()
+        let address: Address = user_address
+            .parse()
             .context("Failed to parse user address")?;
-        
-        let _tx = self.contract
+
+        let _tx = self
+            .contract
             .assign_role(address, role)
             .send()
             .await
             .context("Failed to send assign role transaction")?
             .await
             .context("Failed to wait for transaction confirmation")?;
-        
+
         Ok(())
     }
 }
-

@@ -21,12 +21,9 @@ use utoipa::openapi::security::SecurityScheme;
         ),
     ),
     modifiers(&SecurityModifier),
-    servers(
-        (url = "/")
-    ),
     tags(
         (name = "Users", description = "User management endpoints"),
-        (name = "Health", description = "Health check endpoints")
+        (name = "health", description = "Health check endpoints")
     ),
 )]
 pub struct ApiDoc;
