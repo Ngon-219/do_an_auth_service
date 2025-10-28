@@ -12,6 +12,7 @@ use super::dto::{
 use crate::blockchain::get_user_blockchain_service;
 use crate::extractor::AuthClaims;
 use crate::static_service::DATABASE_CONNECTION;
+use do_an_lib::structs::token_claims::UserRole;
 
 pub fn create_route() -> Router {
     Router::new()
@@ -45,6 +46,7 @@ pub fn create_route() -> Router {
         (status = 404, description = "Student not found"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn get_student_by_id(
@@ -99,6 +101,7 @@ pub async fn get_student_by_id(
         (status = 404, description = "Student not found"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn get_student_id_by_address(
@@ -152,6 +155,7 @@ pub async fn get_student_id_by_address(
         (status = 404, description = "Student not found"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn get_student_id_by_code(
@@ -195,7 +199,8 @@ pub async fn get_student_id_by_code(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Deactivate a student
+/// Deactivate a student (Admin/Manager only)
+/// Requires onlyManager permission in smart contract
 #[utoipa::path(
     put,
     path = "/api/v1/students/{student_id}/deactivate",
@@ -204,14 +209,24 @@ pub async fn get_student_id_by_code(
     ),
     responses(
         (status = 200, description = "Student deactivated", body = StudentStatusResponse),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn deactivate_student(
     AuthClaims(auth_claims): AuthClaims,
     Path(student_id): Path<u64>,
 ) -> Result<(StatusCode, Json<StudentStatusResponse>), (StatusCode, String)> {
+    // Permission check: Admin or Manager only (onlyManager on smart contract)
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can deactivate students".to_string(),
+        ));
+    }
+
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -248,7 +263,8 @@ pub async fn deactivate_student(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Activate a student
+/// Activate a student (Admin/Manager only)
+/// Requires onlyManager permission in smart contract
 #[utoipa::path(
     put,
     path = "/api/v1/students/{student_id}/activate",
@@ -257,14 +273,24 @@ pub async fn deactivate_student(
     ),
     responses(
         (status = 200, description = "Student activated", body = StudentStatusResponse),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn activate_student(
     AuthClaims(auth_claims): AuthClaims,
     Path(student_id): Path<u64>,
 ) -> Result<(StatusCode, Json<StudentStatusResponse>), (StatusCode, String)> {
+    // Permission check: Admin or Manager only (onlyManager on smart contract)
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can activate students".to_string(),
+        ));
+    }
+
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -307,6 +333,7 @@ pub async fn activate_student(
         (status = 200, description = "Student status retrieved", body = StudentStatusResponse),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Students"
 )]
 pub async fn check_student_active(

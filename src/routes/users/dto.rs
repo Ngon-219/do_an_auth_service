@@ -112,3 +112,78 @@ impl ExcelUserRow {
         }
     }
 }
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct UpdateUserRequest {
+    #[schema(example = "Nguyen")]
+    pub first_name: Option<String>,
+
+    #[schema(example = "Van A")]
+    pub last_name: Option<String>,
+
+    #[schema(example = "123 Main St, Hanoi")]
+    pub address: Option<String>,
+
+    #[schema(example = "nguyenvana@example.com")]
+    pub email: Option<String>,
+
+    /// New password (optional) - will be hashed
+    #[schema(example = "newpassword123")]
+    pub password: Option<String>,
+
+    #[schema(example = "0123456789")]
+    pub cccd: Option<String>,
+
+    #[schema(example = "0912345678")]
+    pub phone_number: Option<String>,
+
+    #[schema(example = "student")]
+    pub role: Option<RoleEnum>,
+
+    /// Update major IDs (replaces existing)
+    pub major_ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserDetailResponse {
+    pub user_id: Uuid,
+    pub first_name: String,
+    pub last_name: String,
+    pub address: String,
+    pub email: String,
+    pub cccd: String,
+    pub phone_number: String,
+    pub role: RoleEnum,
+    pub is_priority: bool,
+    pub is_first_login: bool,
+    pub wallet_address: Option<String>,
+    pub major_ids: Vec<Uuid>,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserListResponse {
+    pub users: Vec<UserDetailResponse>,
+    pub total: usize,
+    pub page: usize,
+    pub page_size: usize,
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+pub struct UserQueryParams {
+    #[serde(default = "default_page")]
+    pub page: usize,
+    #[serde(default = "default_page_size")]
+    pub page_size: usize,
+    pub role: Option<RoleEnum>,
+    pub search: Option<String>,
+}
+
+fn default_page() -> usize {
+    1
+}
+
+fn default_page_size() -> usize {
+    20
+}

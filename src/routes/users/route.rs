@@ -1,21 +1,37 @@
-use axum::{Json, Router, extract::Multipart, http::StatusCode, routing::post};
+use axum::{
+    Json, Router,
+    extract::{Multipart, Path, Query},
+    http::StatusCode,
+    routing::{get, post},
+};
 use calamine::{DataType, Reader, Xlsx, open_workbook_from_rs};
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use std::io::Cursor;
 use uuid::Uuid;
+use do_an_lib::structs::token_claims::UserRole;
 
-use super::dto::{BulkUserError, BulkUserResponse, CreateUserRequest, ExcelUserRow, UserResponse};
+use super::dto::{
+    BulkUserError, BulkUserResponse, CreateUserRequest, ExcelUserRow,
+    UpdateUserRequest, UserDetailResponse, UserListResponse, UserQueryParams, UserResponse
+};
 use crate::blockchain::{BlockchainService, get_admin_blockchain_service, get_user_private_key};
 use crate::entities::sea_orm_active_enums::RoleEnum;
 use crate::entities::{user, user_major, wallet};
 use crate::extractor::AuthClaims;
+use crate::middleware::permission;
 use crate::static_service::DATABASE_CONNECTION;
 
 pub fn create_route() -> Router {
     Router::new()
-        .route("/api/v1/users", post(create_user))
+        .route("/api/v1/users", post(create_user).get(get_all_users))
         .route("/api/v1/users/bulk", post(create_users_bulk))
+        .route(
+            "/api/v1/users/{user_id}",
+            get(get_user_by_id)
+                .put(update_user)
+                .delete(delete_user)
+        )
 }
 
 /// Handler for creating a single user
@@ -477,3 +493,517 @@ pub async fn create_users_bulk(
 
     Ok((StatusCode::CREATED, Json(response)))
 }
+
+/// Get all users with pagination and filtering  
+/// Admin can see all, Manager can see students
+#[utoipa::path(
+    get,
+    path = "/api/v1/users",
+    params(UserQueryParams),
+    responses(
+        (status = 200, description = "Users retrieved successfully", body = UserListResponse),
+        (status = 403, description = "Forbidden"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Users"
+)]
+pub async fn get_all_users(
+    AuthClaims(auth_claims): AuthClaims,
+    Query(params): Query<UserQueryParams>,
+) -> Result<(StatusCode, Json<UserListResponse>), (StatusCode, String)> {
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+
+    // Check permission: Admin or Manager
+    permission::is_admin_or_manager(&auth_claims)?;
+
+    let mut query = user::Entity::find();
+
+    // If manager, only show students
+    if auth_claims.role == UserRole::MANAGER {
+        query = query.filter(user::Column::Role.eq(RoleEnum::Student));
+    }
+
+    // Filter by role if provided
+    if let Some(role) = &params.role {
+        query = query.filter(user::Column::Role.eq(role.clone()));
+    }
+
+    // Search by name or email
+    if let Some(search) = &params.search {
+        let search_pattern = format!("%{}%", search);
+        query = query.filter(
+            user::Column::FirstName
+                .contains(&search_pattern)
+                .or(user::Column::LastName.contains(&search_pattern))
+                .or(user::Column::Email.contains(&search_pattern)),
+        );
+    }
+
+    // Get total count
+    let total = query
+        .clone()
+        .count(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    // Apply pagination
+    let offset = (params.page - 1) * params.page_size;
+    let users = query
+        .order_by_desc(user::Column::CreateAt)
+        .limit(params.page_size as u64)
+        .offset(offset as u64)
+        .all(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    // Convert to response DTOs
+    let mut user_responses = Vec::new();
+    for user_model in users {
+        // Get wallet info
+        let wallet_info = wallet::Entity::find()
+            .filter(wallet::Column::UserId.eq(user_model.user_id))
+            .one(db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database error: {}", e),
+                )
+            })?;
+
+        // Get major IDs
+        let major_relationships = user_major::Entity::find()
+            .filter(user_major::Column::UserId.eq(user_model.user_id))
+            .all(db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database error: {}", e),
+                )
+            })?;
+
+        let major_ids = major_relationships
+            .into_iter()
+            .map(|m| m.major_id)
+            .collect();
+
+        user_responses.push(UserDetailResponse {
+            user_id: user_model.user_id,
+            first_name: user_model.first_name,
+            last_name: user_model.last_name,
+            address: user_model.address,
+            email: user_model.email,
+            cccd: user_model.cccd,
+            phone_number: user_model.phone_number,
+            role: user_model.role,
+            is_priority: user_model.is_priority,
+            is_first_login: user_model.is_first_login,
+            wallet_address: wallet_info.map(|w| w.address),
+            major_ids,
+            created_at: user_model.create_at,
+            updated_at: user_model.update_at,
+        });
+    }
+
+    Ok((
+        StatusCode::OK,
+        Json(UserListResponse {
+            users: user_responses,
+            total: total as usize,
+            page: params.page,
+            page_size: params.page_size,
+        }),
+    ))
+}
+
+/// Get user by ID
+/// Admin can see all, Manager can see students, users can see themselves
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/{user_id}",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User retrieved successfully", body = UserDetailResponse),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Users"
+)]
+pub async fn get_user_by_id(
+    AuthClaims(auth_claims): AuthClaims,
+    Path(user_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<UserDetailResponse>), (StatusCode, String)> {
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+
+    // Get target user
+    let target_user = user::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
+
+    // Check permission
+    let user_id_str = user_id.to_string();
+    if auth_claims.role != UserRole::ADMIN {
+        // Manager can only see students
+        if auth_claims.role == UserRole::MANAGER && target_user.role != RoleEnum::Student {
+            return Err((
+                StatusCode::FORBIDDEN,
+                "Managers can only view student accounts".to_string(),
+            ));
+        }
+        // Non-admin/manager can only see themselves
+        if auth_claims.role != UserRole::MANAGER
+            && auth_claims.user_id != user_id_str
+        {
+            return Err((
+                StatusCode::FORBIDDEN,
+                "You can only view your own profile".to_string(),
+            ));
+        }
+    }
+
+    // Get wallet info
+    let wallet_info = wallet::Entity::find()
+        .filter(wallet::Column::UserId.eq(user_id))
+        .one(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    // Get major IDs
+    let major_relationships = user_major::Entity::find()
+        .filter(user_major::Column::UserId.eq(user_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    let major_ids = major_relationships
+        .into_iter()
+        .map(|m| m.major_id)
+        .collect();
+
+    let response = UserDetailResponse {
+        user_id: target_user.user_id,
+        first_name: target_user.first_name,
+        last_name: target_user.last_name,
+        address: target_user.address,
+        email: target_user.email,
+        cccd: target_user.cccd,
+        phone_number: target_user.phone_number,
+        role: target_user.role,
+        is_priority: target_user.is_priority,
+        is_first_login: target_user.is_first_login,
+        wallet_address: wallet_info.map(|w| w.address),
+        major_ids,
+        created_at: target_user.create_at,
+        updated_at: target_user.update_at,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Update user information (UC10, UC17)
+#[utoipa::path(
+    put,
+    path = "/api/v1/users/{user_id}",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID")
+    ),
+    request_body = UpdateUserRequest,
+    responses(
+        (status = 200, description = "User updated successfully", body = UserDetailResponse),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Users"
+)]
+pub async fn update_user(
+    AuthClaims(auth_claims): AuthClaims,
+    Path(user_id): Path<Uuid>,
+    Json(payload): Json<UpdateUserRequest>,
+) -> Result<(StatusCode, Json<UserDetailResponse>), (StatusCode, String)> {
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+
+    // Get target user
+    let target_user = user::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
+
+    // Convert RoleEnum to UserRole for permission check
+    let target_role = match target_user.role {
+        RoleEnum::Admin => UserRole::ADMIN,
+        RoleEnum::Manager => UserRole::MANAGER,
+        RoleEnum::Student => UserRole::STUDENT,
+        RoleEnum::Teacher => UserRole::TEACHER,
+    };
+
+    // Check permission
+    permission::can_modify_user(&auth_claims, &target_role)?;
+
+    let now = Utc::now().naive_utc();
+    let mut active_user: user::ActiveModel = target_user.into();
+
+    // Update fields if provided
+    if let Some(first_name) = payload.first_name {
+        active_user.first_name = Set(first_name);
+    }
+    if let Some(last_name) = payload.last_name {
+        active_user.last_name = Set(last_name);
+    }
+    if let Some(address) = payload.address {
+        active_user.address = Set(address);
+    }
+    if let Some(email) = payload.email {
+        active_user.email = Set(email);
+    }
+    if let Some(password) = payload.password {
+        let hashed = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to hash password: {}", e),
+            )
+        })?;
+        active_user.password = Set(hashed);
+    }
+    if let Some(cccd) = payload.cccd {
+        active_user.cccd = Set(cccd);
+    }
+    if let Some(phone_number) = payload.phone_number {
+        active_user.phone_number = Set(phone_number);
+    }
+    if let Some(role) = payload.role {
+        // Only admin can change roles
+        if auth_claims.role != UserRole::ADMIN {
+            return Err((
+                StatusCode::FORBIDDEN,
+                "Only admin can change user roles".to_string(),
+            ));
+        }
+        active_user.role = Set(role);
+    }
+
+    active_user.update_at = Set(now);
+
+    let updated_user = active_user.update(db).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update user: {}", e),
+        )
+    })?;
+
+    // Update major relationships if provided
+    if let Some(major_ids) = payload.major_ids {
+        // Delete existing relationships
+        user_major::Entity::delete_many()
+            .filter(user_major::Column::UserId.eq(user_id))
+            .exec(db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to update majors: {}", e),
+                )
+            })?;
+
+        // Create new relationships
+        for major_id in major_ids.iter() {
+            let relationship = user_major::ActiveModel {
+                user_id: Set(user_id),
+                major_id: Set(*major_id),
+                create_at: Set(now),
+                updated_at: Set(now),
+            };
+            relationship.insert(db).await.map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to create major relationship: {}", e),
+                )
+            })?;
+        }
+    }
+
+    // Get updated user with full details
+    let wallet_info = wallet::Entity::find()
+        .filter(wallet::Column::UserId.eq(user_id))
+        .one(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    let major_relationships = user_major::Entity::find()
+        .filter(user_major::Column::UserId.eq(user_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?;
+
+    let major_ids = major_relationships
+        .into_iter()
+        .map(|m| m.major_id)
+        .collect();
+
+    let response = UserDetailResponse {
+        user_id: updated_user.user_id,
+        first_name: updated_user.first_name,
+        last_name: updated_user.last_name,
+        address: updated_user.address,
+        email: updated_user.email,
+        cccd: updated_user.cccd,
+        phone_number: updated_user.phone_number,
+        role: updated_user.role,
+        is_priority: updated_user.is_priority,
+        is_first_login: updated_user.is_first_login,
+        wallet_address: wallet_info.map(|w| w.address),
+        major_ids,
+        created_at: updated_user.create_at,
+        updated_at: updated_user.update_at,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Delete user (UC11, UC18)
+#[utoipa::path(
+    delete,
+    path = "/api/v1/users/{user_id}",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID")
+    ),
+    responses(
+        (status = 200, description = "User deleted successfully"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(("bearer_auth" = [])),
+    tag = "Users"
+)]
+pub async fn delete_user(
+    AuthClaims(auth_claims): AuthClaims,
+    Path(user_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, String)> {
+    let db = DATABASE_CONNECTION
+        .get()
+        .expect("DATABASE_CONNECTION not set");
+
+    // Get target user
+    let target_user = user::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", e),
+            )
+        })?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
+
+    // Convert RoleEnum to UserRole for permission check
+    let target_role = match target_user.role {
+        RoleEnum::Admin => UserRole::ADMIN,
+        RoleEnum::Manager => UserRole::MANAGER,
+        RoleEnum::Student => UserRole::STUDENT,
+        RoleEnum::Teacher => UserRole::TEACHER,
+    };
+
+    // Check permission
+    permission::can_modify_user(&auth_claims, &target_role)?;
+
+    // Delete user major relationships first (foreign key constraint)
+    user_major::Entity::delete_many()
+        .filter(user_major::Column::UserId.eq(user_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete user majors: {}", e),
+            )
+        })?;
+
+    // Delete wallet
+    wallet::Entity::delete_many()
+        .filter(wallet::Column::UserId.eq(user_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete wallet: {}", e),
+            )
+        })?;
+
+    // Delete user
+    user::Entity::delete_by_id(user_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete user: {}", e),
+            )
+        })?;
+
+    Ok((
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "message": "User deleted successfully",
+            "user_id": user_id
+        })),
+    ))
+}
+

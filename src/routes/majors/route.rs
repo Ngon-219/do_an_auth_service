@@ -10,7 +10,9 @@ use uuid::Uuid;
 
 use super::dto::{CreateMajorRequest, MajorListResponse, MajorResponse, UpdateMajorRequest};
 use crate::entities::major;
+use crate::extractor::AuthClaims;
 use crate::static_service::DATABASE_CONNECTION;
+use do_an_lib::structs::token_claims::UserRole;
 
 pub fn create_route() -> Router {
     Router::new()
@@ -21,7 +23,7 @@ pub fn create_route() -> Router {
         .route("/api/v1/majors/{major_id}", delete(delete_major))
 }
 
-/// Create a new major
+/// Create a new major (Admin/Manager only)
 #[utoipa::path(
     post,
     path = "/api/v1/majors",
@@ -29,13 +31,23 @@ pub fn create_route() -> Router {
     responses(
         (status = 201, description = "Major created", body = MajorResponse),
         (status = 400, description = "Bad request"),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Majors"
 )]
 pub async fn create_major(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<CreateMajorRequest>,
 ) -> Result<(StatusCode, Json<MajorResponse>), (StatusCode, String)> {
+    // Check permission: Admin or Manager only  
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can create majors".to_string(),
+        ));
+    }
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -79,10 +91,12 @@ pub async fn create_major(
         (status = 200, description = "Majors retrieved", body = MajorListResponse),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Majors"
 )]
-pub async fn get_all_majors() -> Result<(StatusCode, Json<MajorListResponse>), (StatusCode, String)>
-{
+pub async fn get_all_majors(
+    AuthClaims(_auth_claims): AuthClaims,
+) -> Result<(StatusCode, Json<MajorListResponse>), (StatusCode, String)> {
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -112,7 +126,7 @@ pub async fn get_all_majors() -> Result<(StatusCode, Json<MajorListResponse>), (
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Get major by ID
+/// Get major by ID (Authenticated users)
 #[utoipa::path(
     get,
     path = "/api/v1/majors/{major_id}",
@@ -124,9 +138,11 @@ pub async fn get_all_majors() -> Result<(StatusCode, Json<MajorListResponse>), (
         (status = 404, description = "Major not found"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Majors"
 )]
 pub async fn get_major(
+    AuthClaims(_auth_claims): AuthClaims,
     Path(major_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<MajorResponse>), (StatusCode, String)> {
     let db = DATABASE_CONNECTION
@@ -157,7 +173,7 @@ pub async fn get_major(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Update major
+/// Update major (Admin/Manager only)
 #[utoipa::path(
     put,
     path = "/api/v1/majors/{major_id}",
@@ -168,14 +184,25 @@ pub async fn get_major(
     responses(
         (status = 200, description = "Major updated", body = MajorResponse),
         (status = 404, description = "Major not found"),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Majors"
 )]
 pub async fn update_major(
+    AuthClaims(auth_claims): AuthClaims,
     Path(major_id): Path<Uuid>,
     Json(payload): Json<UpdateMajorRequest>,
 ) -> Result<(StatusCode, Json<MajorResponse>), (StatusCode, String)> {
+    // Check permission: Admin or Manager only
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can update majors".to_string(),
+        ));
+    }
+    
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -224,7 +251,7 @@ pub async fn update_major(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Delete major
+/// Delete major (Admin only)
 #[utoipa::path(
     delete,
     path = "/api/v1/majors/{major_id}",
@@ -234,11 +261,24 @@ pub async fn update_major(
     responses(
         (status = 204, description = "Major deleted"),
         (status = 404, description = "Major not found"),
+        (status = 403, description = "Forbidden - Admin only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Majors"
 )]
-pub async fn delete_major(Path(major_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
+pub async fn delete_major(
+    AuthClaims(auth_claims): AuthClaims,
+    Path(major_id): Path<Uuid>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    // Check permission: Admin only (deletion is critical)
+    if auth_claims.role != UserRole::ADMIN {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin can delete majors".to_string(),
+        ));
+    }
+    
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");

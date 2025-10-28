@@ -5,6 +5,7 @@ use super::dto::{
 use crate::blockchain::get_user_blockchain_service;
 use crate::extractor::AuthClaims;
 use crate::static_service::DATABASE_CONNECTION;
+use do_an_lib::structs::token_claims::UserRole;
 use axum::{
     Json, Router,
     http::StatusCode,
@@ -20,22 +21,33 @@ pub fn create_route() -> Router {
         .route("/api/v1/managers/check", post(check_manager))
 }
 
-/// Add a manager to the blockchain
+/// Add a manager to the blockchain (Admin only)
+/// Requires onlyOwner permission in smart contract
 #[utoipa::path(
     post,
     path = "/api/v1/managers",
     request_body = AddManagerRequest,
     responses(
         (status = 200, description = "Manager added successfully", body = ManagerResponse),
+        (status = 403, description = "Forbidden - Admin/Owner only"),
         (status = 400, description = "Bad request"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Managers"
 )]
 pub async fn add_manager(
     AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<AddManagerRequest>,
 ) -> Result<(StatusCode, Json<ManagerResponse>), (StatusCode, String)> {
+    // Permission check: Admin only (onlyOwner on smart contract)
+    if auth_claims.role != UserRole::ADMIN {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin can add managers".to_string(),
+        ));
+    }
+
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -73,22 +85,33 @@ pub async fn add_manager(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Remove a manager from the blockchain
+/// Remove a manager from the blockchain (Admin only)
+/// Requires onlyOwner permission in smart contract
 #[utoipa::path(
     delete,
     path = "/api/v1/managers",
     request_body = RemoveManagerRequest,
     responses(
         (status = 200, description = "Manager removed successfully", body = ManagerResponse),
+        (status = 403, description = "Forbidden - Admin/Owner only"),
         (status = 400, description = "Bad request"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Managers"
 )]
 pub async fn remove_manager(
     AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<RemoveManagerRequest>,
 ) -> Result<(StatusCode, Json<ManagerResponse>), (StatusCode, String)> {
+    // Permission check: Admin only (onlyOwner on smart contract)
+    if auth_claims.role != UserRole::ADMIN {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin can remove managers".to_string(),
+        ));
+    }
+
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -127,7 +150,7 @@ pub async fn remove_manager(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Get all managers from the blockchain
+/// Get all managers from the blockchain (Authenticated users)
 #[utoipa::path(
     get,
     path = "/api/v1/managers",
@@ -135,6 +158,7 @@ pub async fn remove_manager(
         (status = 200, description = "Managers retrieved successfully", body = ManagerListResponse),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Managers"
 )]
 pub async fn get_all_managers(
@@ -192,6 +216,7 @@ pub async fn get_all_managers(
         (status = 400, description = "Bad request"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Managers"
 )]
 pub async fn check_manager(

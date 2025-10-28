@@ -12,7 +12,9 @@ use super::dto::{
     CreateDepartmentRequest, DepartmentListResponse, DepartmentResponse, UpdateDepartmentRequest,
 };
 use crate::entities::department;
+use crate::extractor::AuthClaims;
 use crate::static_service::DATABASE_CONNECTION;
+use do_an_lib::structs::token_claims::UserRole;
 
 pub fn create_route() -> Router {
     Router::new()
@@ -29,7 +31,7 @@ pub fn create_route() -> Router {
         )
 }
 
-/// Create a new department
+/// Create a new department (Admin/Manager only)
 #[utoipa::path(
     post,
     path = "/api/v1/departments",
@@ -37,13 +39,24 @@ pub fn create_route() -> Router {
     responses(
         (status = 201, description = "Department created", body = DepartmentResponse),
         (status = 400, description = "Bad request"),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Departments"
 )]
 pub async fn create_department(
+    AuthClaims(auth_claims): AuthClaims,
     Json(payload): Json<CreateDepartmentRequest>,
 ) -> Result<(StatusCode, Json<DepartmentResponse>), (StatusCode, String)> {
+    // Check permission: Admin or Manager only
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can create departments".to_string(),
+        ));
+    }
+
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -79,7 +92,7 @@ pub async fn create_department(
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-/// Get all departments
+/// Get all departments (Authenticated users)
 #[utoipa::path(
     get,
     path = "/api/v1/departments",
@@ -87,10 +100,12 @@ pub async fn create_department(
         (status = 200, description = "Departments retrieved", body = DepartmentListResponse),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Departments"
 )]
-pub async fn get_all_departments()
--> Result<(StatusCode, Json<DepartmentListResponse>), (StatusCode, String)> {
+pub async fn get_all_departments(
+    AuthClaims(_auth_claims): AuthClaims,
+) -> Result<(StatusCode, Json<DepartmentListResponse>), (StatusCode, String)> {
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -120,7 +135,7 @@ pub async fn get_all_departments()
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Get department by ID
+/// Get department by ID (Authenticated users)
 #[utoipa::path(
     get,
     path = "/api/v1/departments/{department_id}",
@@ -132,9 +147,11 @@ pub async fn get_all_departments()
         (status = 404, description = "Department not found"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Departments"
 )]
 pub async fn get_department(
+    AuthClaims(_auth_claims): AuthClaims,
     Path(department_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<DepartmentResponse>), (StatusCode, String)> {
     let db = DATABASE_CONNECTION
@@ -165,7 +182,7 @@ pub async fn get_department(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Update department
+/// Update department (Admin/Manager only)
 #[utoipa::path(
     put,
     path = "/api/v1/departments/{department_id}",
@@ -176,14 +193,25 @@ pub async fn get_department(
     responses(
         (status = 200, description = "Department updated", body = DepartmentResponse),
         (status = 404, description = "Department not found"),
+        (status = 403, description = "Forbidden - Admin/Manager only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Departments"
 )]
 pub async fn update_department(
+    AuthClaims(auth_claims): AuthClaims,
     Path(department_id): Path<Uuid>,
     Json(payload): Json<UpdateDepartmentRequest>,
 ) -> Result<(StatusCode, Json<DepartmentResponse>), (StatusCode, String)> {
+    // Check permission: Admin or Manager only
+    if auth_claims.role != UserRole::ADMIN && auth_claims.role != UserRole::MANAGER {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin or manager can update departments".to_string(),
+        ));
+    }
+    
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
@@ -232,7 +260,7 @@ pub async fn update_department(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Delete department
+/// Delete department (Admin only)
 #[utoipa::path(
     delete,
     path = "/api/v1/departments/{department_id}",
@@ -242,13 +270,24 @@ pub async fn update_department(
     responses(
         (status = 204, description = "Department deleted"),
         (status = 404, description = "Department not found"),
+        (status = 403, description = "Forbidden - Admin only"),
         (status = 500, description = "Internal server error")
     ),
+    security(("bearer_auth" = [])),
     tag = "Departments"
 )]
 pub async fn delete_department(
+    AuthClaims(auth_claims): AuthClaims,
     Path(department_id): Path<Uuid>,
 ) -> Result<StatusCode, (StatusCode, String)> {
+    // Check permission: Admin only (deletion is critical)
+    if auth_claims.role != UserRole::ADMIN {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Only admin can delete departments".to_string(),
+        ));
+    }
+    
     let db = DATABASE_CONNECTION
         .get()
         .expect("DATABASE_CONNECTION not set");
